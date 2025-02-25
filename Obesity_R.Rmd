@@ -1,0 +1,202 @@
+---
+title: "Assesing Self-Management & Diet with Obesity Level"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+date: "2024-02-25"
+---
+
+## Introduction 
+  This report will review the data from a obesity survey with 2111 respondents. By delving into the data we will analysis into the nuances of self-management and dietary practices among the surveyed individuals and how these response may affect obesity levels. This analysis aims to navigate the complex landscape of obesity and aid in decision making and education for promoting healthier lifestyles.
+
+**Research Question:** *Does self-management, lifestyle and diet affect an individuals obesity levels?*
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plotly)
+library(ggplot2)
+library(VIM)
+options(repos = "https://cloud.r-project.org/")
+install.packages("gtsummary")  # Install the package
+library(gtsummary)  # Load the package
+```
+
+```{r}
+install.packages("gtsummary")
+```
+
+
+```{r setup-plotting}
+Obesity_Data<-read.csv("Obesity_Data.csv")
+```
+  
+## Data Management and Data Summary
+ After analysis no missing data is identified.
+```{r}
+#Outliers and remove scientific notations in data 
+options(scipen = 999)
+
+library(VIM)
+if (length(dev.list()) > 0) dev.off() #function counteracts error prompted in orginal code
+aggr <- aggr(Obesity_Data, col=c('blue','purple'),
+             numbers=TRUE,
+             sortvars=TRUE,
+             labels=names(data),
+             cex.axis=0.5)
+```
+### Figure I: Summary Table
+ To begin the analysis, a overview of the entire data set is created to provide an evaluation of key information and identify any trends or patterns. Using the data dictionary provided, the categorical data was reviewed and changed from its numerical value to full definition of the values (ie 1= sometimes etc). In order to keep the meaning of ordinal value and uniqueness without replacing the numerical representation the values are transformed into factors
+```{r}
+# created only to be used with the table codes
+data<- Obesity_Data
+
+#values are rounded to the nearest integer
+data$FCVC <- round(data$FCVC)
+data$NCP <- round(data$NCP)
+data$CH2O <- round(data$CH2O)
+data$FAF <- round(data$FAF)
+data$TUE <- round(data$TUE)
+
+#Making data labels with factors
+data$"Vegtable intake per meal" <- factor(round(data$FCVC), levels = 1:3, labels = c("Never", "Sometimes", "Always"))
+data$"Daily Meal intake" <- factor(round(data$NCP), levels = 1:3, labels = c("Between 1 and 2", "Three", "More Than Three"))
+data$"Daily water intake" <- factor(round(data$CH2O), levels = 1:3, labels = c("<1L", "1-2L", "2L"))
+data$"Physical activity" <- factor(round(data$FAF), levels = 0:3, labels = c("None", "1 or 2 Days", "2 or 3 Days", "4 or 5 Days"))
+data$"Technology Usage " <- factor(round(data$TUE), levels = 0:2, labels = c("0-2 Hours", "3-5 Hours", "More Than 5 Hours"))
+
+
+```
+ 
+
+```{r}
+library(gtsummary)
+#CHANGING NAMES 
+names(data)[names(data) == "family_history_with_overweight"] <- "Family History with Overweight"
+names(data)[names(data) == "FAVC"] <- "Do you eat high calorific food frequently?"
+names(data)[names(data) == "CAEC"] <- "Food between meals"
+names(data)[names(data) == "SCC"] <- "Do you monitor calories daily?"
+names(data)[names(data) == "CALC"] <- "Alcohol consumption "
+names(data)[names(data) == "MTRANS"] <- "Method of Transportation"
+names(data)[names(data) == "NObeyesdad"] <- "Obesity level"
+
+
+#MAKING TABLE
+tbl <- data %>%
+  select(-c(Age, ID,FCVC,NCP,TUE,CH2O,FAF
+            )) %>%
+  tbl_summary(
+    by = Gender,
+    statistic = list(all_continuous() ~ "{mean}"),
+    digits = all_continuous() ~ 2
+  )  %>%
+  modify_spanning_header(c("stat_1", "stat_2") ~ "**Gender**") %>%
+  add_overall() %>%
+  bold_labels() %>%
+  italicize_levels() %>%
+  modify_caption("**Survey Characteristics**")
+
+
+tbl
+```
+ 
+## Self-Management and Diet Data Analysis
+### Figure II: Bar Graph
+   Evaluating the comparison of a participants Obesity level and most common mode of transportation may aid in evaluating how lifestyle affects obesity. In order to view these data points, a bar graph using ggplot was created viewing response difference based on Obesity level and the participants most common mode of transportation.
+
+ This demonstrates that their may be little to no significant and association on mode of transportation when evaluating which lifestyle habits/behaviors affect obesity levels.
+ 
+```{r}
+contrast_palette <- c("#132B43", "#4B7CAC", "#ADD8E6","#571100", "#DB3A00", "#FFC3B3")
+
+library(ggplot2)
+bar_plot<-ggplot(Obesity_Data, aes(x = NObeyesdad, fill = factor(MTRANS))) +
+  geom_bar(position = "dodge", stat = "count") +
+  labs(
+    title = "Mode of Transporation and Obesity Levels",
+    x = "Obesity Level",
+    y = "Count",
+    fill = "Consumption",
+  )+
+   theme(axis.text.x = element_text(angle = 45, hjust = 1, color="black"),
+    axis.title.x = element_text(margin = margin(10, 0, 0, 0, unit = "pt")))+
+    scale_fill_manual(values =contrast_palette )
+
+bar_plot
+```
+
+### Figure III: Violin Plot
+
+Another lifestyle habit to consider is diet and consumption of high caloric food. The survey asked participants the following:" Do you eat high calorific food frequently?"  with the responses being either, "yes", or "no". Evaluating the comparison of a participants Obesity level and high calorific food consumption may aid in evaluating how diet and lifestyle(self-management) affects obesity.
+
+These results suggests greater variability among all respondents. However, the insufficient weight level has a higher distribution under the "no" response which can suggest that since most participants are not eating high caloric food, that may be associated with them being classified as insufficient weight.
+ 
+```{r}
+
+library(ggplot2)
+
+levels <- unique(Obesity_Data$NObeyesdad)
+
+violin_plot <- ggplot(Obesity_Data, aes(x = NObeyesdad, y = FAVC, fill = factor(NObeyesdad))) +
+  geom_violin(trim = FALSE) +
+  labs(title = "Obesity Level by Frequency of High Caloric Food Consumption",
+       x = "Obesity Levels",
+       y = "Frequency of High Caloric Food Consumption",
+       fill = "Obesity Level",
+       ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+    axis.title.x = element_text(margin = margin(10, 0, 5, 0, unit = "pt"))) +
+  scale_fill_manual(values = setNames(contrast_palette[1:length(levels)], levels))
+  
+
+violin_plot
+
+```
+
+### Figure IV: Stacked Bar Graph
+
+  Next the evaluation of any association between physical activity and  **high** obesity levels were conducted. This analysis is conducted using the Obesity Type 1 through 3 levels, and using Normal weight as a baseline for comparison. 
+
+  The results from this visualization demonstrates that participants classified under obesity type 3 perform little to no physical activity throughout the week. It can be assumed that the lack of physical activity may be associated with their high level of obesity. Approximately 14% of  normal weight participants and 7% of obesity type 1 perform physical activity 4-5 days out of the week, contributing to their "normal" or lower obesity level compared to the other obesity levels.
+```{r}
+
+library(ggplot2)
+
+#data adjustments
+round(Obesity_Data$FAF)
+Obesity_Data$FAF<-factor(round(Obesity_Data$FAF), levels = 0:3, labels = c("None", "1 or 2 Days", "2 or 3 Days", "4 or 5 Days"))
+filtered_data <- Obesity_Data[Obesity_Data$NObeyesdad %in% c("Normal_Weight", "Obesity_Type_I", "Obesity_Type_II", "Obesity_Type_III"), ]
+count_data <- as.data.frame(table(filtered_data$NObeyesdad, filtered_data$FAF))
+names(count_data) <- c("Obesity_Level", "Physical_Activity_Hours", "count")
+
+
+# % calculation
+count_data$total <- ave(count_data$count, count_data$Obesity_Level, FUN = sum)
+count_data$percentage <- with(count_data, ifelse(total == 0, 0, count / total * 100))
+
+
+stacked<-ggplot(count_data, aes(x = Physical_Activity_Hours, y = percentage, fill = Obesity_Level)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(round(percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), size = 3, color="white") +
+  labs(title = "Physical Activity of Obesity Type 1-3 vs Normal weight",
+       x = "Physical Activity Hours",
+       y = "Percentage of Sample",
+       fill = "Obesity Level",
+       ) +
+  scale_fill_manual(values = contrast_palette ) +  
+  theme_minimal() +
+   theme(
+    axis.title.x = element_text(margin = margin(15, 0, 0, 0, unit = "pt"))
+  )
+
+stacked
+
+```
+ 
+## Conclusion
+  
+Based on the obesity data and the data elements reviewed in this analysis, it can be concluded that the their is insufficient evidence to support a relationship between self-management, lifestyle, and diet with individuals' obesity levels. Despite exploring factors such as, high caloric food intake, mode of transportation and physical activity through analysis, the data did not reveal substantial evidence to draw definite conclusions from. The lack of major significance may be due to the few factors reviewed. further investigation on the other factors of this data set should be conducted to delve deeper into any potential relationship between lifestyle and obesity.
+ 
+ 
+ 
